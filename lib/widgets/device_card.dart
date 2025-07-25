@@ -1,38 +1,15 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/timer_models.dart';
 
-class DeviceCard extends StatefulWidget {
-  final String name;
+class DeviceCard extends StatelessWidget {
+  final DeviceTimer device;
+  final VoidCallback? onTap;
 
   const DeviceCard({
     super.key,
-    required this.name,
+    required this.device,
+    this.onTap,
   });
-
-  @override
-  State<DeviceCard> createState() => _DeviceCardState();
-}
-
-class _DeviceCardState extends State<DeviceCard> {
-  bool _isActive = false;
-  Timer? _timer;
-  Duration _duration = Duration.zero;
-
-  void _toggleTimer() {
-    setState(() {
-      _isActive = !_isActive;
-      if (_isActive) {
-        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          setState(() {
-            _duration += const Duration(seconds: 1);
-          });
-        });
-      } else {
-        _timer?.cancel();
-        _duration = Duration.zero;
-      }
-    });
-  }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -42,28 +19,22 @@ class _DeviceCardState extends State<DeviceCard> {
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: _toggleTimer,
+      onTap: onTap,
       child: Card(
-        color: _isActive ? Colors.green.withAlpha((255 * 0.5).round()) : Theme.of(context).cardColor,
+        color: device.isActive ? Colors.green.withAlpha(128) : Theme.of(context).cardColor,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(widget.name, style: Theme.of(context).textTheme.titleLarge),
+                Text(device.name, style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 8),
-                if (_isActive)
+                if (device.isActive)
                   Text(
-                    _formatDuration(_duration),
+                    _formatDuration(Duration(seconds: device.seconds)),
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
               ],

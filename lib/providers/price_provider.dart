@@ -1,35 +1,42 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/timer_models.dart';
 
-class PriceProvider extends ChangeNotifier {
-  late SharedPreferences _prefs;
+class PriceProvider with ChangeNotifier {
+  Price _price = Price();
 
-  final Map<String, double> _prices = {
-    'pc': 1000,
-    'ps4': 1500,
-    'game': 5000,
-    'cake': 10000,
-    'soda': 5000,
-    'hype': 15000,
-  };
-
-  Map<String, double> get prices => _prices;
+  Price get price => _price;
 
   PriceProvider() {
-    _loadPrices();
+    loadPrice();
   }
 
-  Future<void> _loadPrices() async {
-    _prefs = await SharedPreferences.getInstance();
-    _prices.forEach((key, value) {
-      _prices[key] = _prefs.getDouble('price_$key') ?? value;
-    });
+  Future<void> loadPrice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final priceString = prefs.getString('price');
+      if (priceString != null && priceString.isNotEmpty) {
+        _price = Price.fromJson(jsonDecode(priceString));
+      }
+    } catch (e) {
+      // Handle error
+    }
     notifyListeners();
   }
 
-  Future<void> updatePrice(String key, double value) async {
-    _prices[key] = value;
-    await _prefs.setDouble('price_$key', value);
+  Future<void> savePrice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('price', jsonEncode(_price.toJson()));
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  void setPrice(Price newPrice) {
+    _price = newPrice;
+    savePrice();
     notifyListeners();
   }
 }

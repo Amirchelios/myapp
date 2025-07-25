@@ -1,79 +1,111 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/timer_models.dart';
 
-class TimerProvider extends ChangeNotifier {
-  final List<DeviceTimer> _devices = [
-    DeviceTimer(id: 'pc1', name: 'R1', type: 'PC'),
-    DeviceTimer(id: 'pc2', name: 'R2', type: 'PC'),
-    DeviceTimer(id: 'pc3', name: 'R3', type: 'PC'),
-    DeviceTimer(id: 'pc4', name: 'R4', type: 'PC'),
-    DeviceTimer(id: 'pc5', name: 'L1', type: 'PC'),
-    DeviceTimer(id: 'pc6', name: 'L2', type: 'PC'),
-    DeviceTimer(id: 'pc7', name: 'L3', type: 'PC'),
-    DeviceTimer(id: 'pc8', name: 'L4', type: 'PC'),
-    DeviceTimer(id: 'ps1', name: 'PS1', type: 'PS4'),
-    DeviceTimer(id: 'ps2', name: 'PS2', type: 'PS4'),
-    DeviceTimer(id: 'ps3', name: 'PS3', type: 'PS4'),
-    DeviceTimer(id: 'ps4', name: 'PS4', type: 'PS4'),
-  ];
-
-  final List<GroupTimer> _groups = [
-    GroupTimer(id: 'red', color: Colors.red),
-    GroupTimer(id: 'blue', color: Colors.blue),
-    GroupTimer(id: 'green', color: Colors.green),
-    GroupTimer(id: 'yellow', color: Colors.yellow),
-  ];
+class TimerProvider with ChangeNotifier {
+  List<DeviceTimer> _devices = [];
+  List<GroupTimer> _groups = [];
 
   List<DeviceTimer> get devices => _devices;
   List<GroupTimer> get groups => _groups;
 
-  bool get hasActiveTimers =>
-      _devices.any((d) => d.isActive) || _groups.any((g) => g.isActive);
+  TimerProvider() {
+    loadTimers();
+  }
+
+  Future<File> get _localFile async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/timers.json');
+  }
+
+  Future<void> loadTimers() async {
+    try {
+      final file = await _localFile;
+      if (await file.exists()) {
+        final contents = await file.readAsString();
+        if (contents.isNotEmpty) {
+          final Map<String, dynamic> json = jsonDecode(contents);
+          _devices = (json['devices'] as List).map((e) => DeviceTimer.fromJson(e)).toList();
+          _groups = (json['groups'] as List).map((e) => GroupTimer.fromJson(e)).toList();
+        } else {
+          _initializeTimers();
+        }
+      } else {
+        _initializeTimers();
+      }
+    } catch (e) {
+      _initializeTimers();
+    }
+    notifyListeners();
+  }
+
+  void _initializeTimers() {
+    _devices = [
+      ...List.generate(8, (i) => DeviceTimer(id: 'PC${i + 1}', name: 'R${i + 1}', type: 'PC', icon: Icons.desktop_windows)),
+      ...List.generate(4, (i) => DeviceTimer(id: 'PS${i + 1}', name: 'PS${i + 1}', type: 'PS4', icon: Icons.gamepad)),
+    ];
+    _groups = [
+      GroupTimer(id: 'Group 1', colorValue: 0xFFF44336), // Colors.red
+      GroupTimer(id: 'Group 2', colorValue: 0xFF2196F3), // Colors.blue
+      GroupTimer(id: 'Group 3', colorValue: 0xFF4CAF50), // Colors.green
+      GroupTimer(id: 'Group 4', colorValue: 0xFFFFEB3B), // Colors.yellow
+    ];
+  }
+
+  Future<void> saveTimers() async {
+    try {
+      final file = await _localFile;
+      final Map<String, dynamic> json = {
+        'devices': _devices.map((e) => e.toJson()).toList(),
+        'groups': _groups.map((e) => e.toJson()).toList(),
+      };
+      await file.writeAsString(jsonEncode(json));
+    } catch (e) {
+      // handle error
+    }
+  }
 
   void toggleDeviceTimer(String id) {
     final device = _devices.firstWhere((d) => d.id == id);
+    device.isActive = !device.isActive;
     if (device.isActive) {
-      device.timer?.cancel();
-      device.isActive = false;
-    } else {
-      device.seconds = 0;
-      device.isActive = true;
       device.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         device.seconds++;
         notifyListeners();
       });
+    } else {
+      device.timer?.cancel();
     }
+    saveTimers();
     notifyListeners();
   }
 
   void stopDeviceTimer(String id) {
     final device = _devices.firstWhere((d) => d.id == id);
-    device.timer?.cancel();
     device.isActive = false;
+    device.timer?.cancel();
+    // Logic to calculate cost and show payment dialog will be added here
+    device.seconds = 0;
+    saveTimers();
     notifyListeners();
   }
 
   void toggleGroupTimer(String id) {
     final group = _groups.firstWhere((g) => g.id == id);
+    group.isActive = !group.isActive;
     if (group.isActive) {
-      group.timer?.cancel();
-      group.isActive = false;
-    } else {
-      group.seconds = 0;
-      group.isActive = true;
       group.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         group.seconds++;
         notifyListeners();
       });
+    } else {
+      group.timer?.cancel();
+      // Logic to show loser selection dialog will be added here
     }
-    notifyListeners();
-  }
-
-  void stopGroupTimer(String id) {
-    final group = _groups.firstWhere((g) => g.id == id);
-    group.timer?.cancel();
-    group.isActive = false;
+    saveTimers();
     notifyListeners();
   }
 }
