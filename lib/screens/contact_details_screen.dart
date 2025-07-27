@@ -59,7 +59,9 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
       final isTimeBased = itemName == "PC" || itemName == "PS4";
       if (isTimeBased) {
         _itemFocusNodes[itemName]!.addListener(() {
-          if (!_itemFocusNodes[itemName]!.hasFocus) {
+          if (_itemFocusNodes[itemName]!.hasFocus) {
+            _showTimePlayedDialog(itemName);
+          } else {
             _updateTimeBasedItem(itemName);
           }
         });
@@ -353,6 +355,23 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
                 Navigator.of(ctx).pop();
               }
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTimePlayedDialog(String itemName) {
+    final minutes = widget.contact.items[itemName] ?? 0;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('مجموع زمان بازی شده برای $itemName'),
+        content: Text('کل زمان بازی شده: $minutes دقیقه'),
+        actions: [
+          TextButton(
+            child: const Text('باشه'),
+            onPressed: () => Navigator.of(ctx).pop(),
           ),
         ],
       ),

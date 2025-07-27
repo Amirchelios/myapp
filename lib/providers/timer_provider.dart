@@ -44,7 +44,8 @@ class TimerProvider with ChangeNotifier {
 
   void _initializeTimers() {
     _devices = [
-      ...List.generate(8, (i) => DeviceTimer(id: 'PC${i + 1}', name: 'R${i + 1}', type: 'PC', icon: Icons.desktop_windows)),
+      ...List.generate(4, (i) => DeviceTimer(id: 'PC${i + 1}', name: 'L${i + 1}', type: 'PC', icon: Icons.desktop_windows)),
+      ...List.generate(4, (i) => DeviceTimer(id: 'PC${i + 5}', name: 'R${i + 1}', type: 'PC', icon: Icons.desktop_windows)),
       ...List.generate(4, (i) => DeviceTimer(id: 'PS${i + 1}', name: 'PS${i + 1}', type: 'PS4', icon: Icons.gamepad)),
     ];
     _groups = [

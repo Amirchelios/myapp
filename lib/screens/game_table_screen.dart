@@ -121,11 +121,11 @@ class GameTableScreen extends StatelessWidget {
       // If timer is active, show confirmation dialog
       final Duration elapsedTime = Duration(seconds: device.seconds);
       final int minutesRoundedUp = (elapsedTime.inSeconds / 60).ceil();
-      final double pricePerMinute = (device.type == 'PC'
+      final double pricePerHour = (device.type == 'PC'
               ? priceProvider.price.pc
               : priceProvider.price.ps4)
           .toDouble();
-      final double totalCost = minutesRoundedUp * pricePerMinute;
+      final double totalCost = (minutesRoundedUp / 60) * pricePerHour;
 
       showDialog(
         context: context,
@@ -134,7 +134,7 @@ class GameTableScreen extends StatelessWidget {
           child: AlertDialog(
             title: const Text('پایان نشست؟'),
             content: Text(
-                'زمان سپری شده: ${_formatDuration(elapsedTime)}\nزمان محاسبه شده: $minutesRoundedUp دقیقه\nمبلغ قابل پرداخت: ${totalCost.toStringAsFixed(0)} تومان'),
+                'زمان سپری شده: ${_formatDuration(elapsedTime)}\nزمان محاسبه شده: $minutesRoundedUp دقیقه\nمبلغ قابل پرداخت: ${totalCost.round()} تومان'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -179,34 +179,46 @@ class GameTableScreen extends StatelessWidget {
                 title: const Text('انتخاب کاربر برای ثبت بدهی'),
                 content: SizedBox(
                   width: double.maxFinite,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Stack(
                     children: [
-                      ClearableSearchField(
-                        controller: searchController,
-                        hintText: 'جستجو...',
-                        onChanged: (value) => setState(() {}),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: filteredContacts.length,
-                          itemBuilder: (context, index) {
-                            final contact = filteredContacts[index];
-                            return ListTile(
-                              title: Text(contact.name, textAlign: TextAlign.right),
-                              onTap: () {
-                                setState(() {
-                                  final updatedItems = Map<String, int>.from(contact.items);
-                                  // Store duration in minutes
-                                  updatedItems[itemType] = (updatedItems[itemType] ?? 0) + durationInMinutes;
-                                  contactProvider.updateContact(contact.copyWith(items: updatedItems));
-                                });
-                                Navigator.of(context).pop();
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClearableSearchField(
+                            controller: searchController,
+                            hintText: 'جستجو...',
+                            onChanged: (value) => setState(() {}),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filteredContacts.length,
+                              itemBuilder: (context, index) {
+                                final contact = filteredContacts[index];
+                                return ListTile(
+                                  title: Text(contact.name, textAlign: TextAlign.right),
+                                  onTap: () {
+                                    setState(() {
+                                      final updatedItems = Map<String, int>.from(contact.items);
+                                      // Store duration in minutes
+                                      updatedItems[itemType] = (updatedItems[itemType] ?? 0) + durationInMinutes;
+                                      contactProvider.updateContact(contact.copyWith(items: updatedItems));
+                                    });
+                                    Navigator.of(context).pop();
+                                  },
+                                );
                               },
-                            );
-                          },
+                            ),
+                          ),
+                        ],
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        child: FloatingActionButton(
+                          onPressed: () => _showAddContactDialog(context, () => setState(() {})),
+                          child: const Icon(Icons.add),
                         ),
                       ),
                     ],
@@ -273,7 +285,41 @@ class GameTableScreen extends StatelessWidget {
     }
   }
 
-   void _showLoserSelection(BuildContext context, String groupId) {
+   void _showAddContactDialog(BuildContext context, VoidCallback onContactAdded) {
+    final nameController = TextEditingController();
+    showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('افزودن کاربر جدید'),
+            content: TextField(
+              controller: nameController,
+              decoration: const InputDecoration(hintText: "نام کاربر"),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('لغو'),
+              ),
+              TextButton(
+                onPressed: () {
+                  final name = nameController.text;
+                  if (name.isNotEmpty) {
+                    Provider.of<ContactProvider>(context, listen: false).addContact(name);
+                    onContactAdded();
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text('افزودن'),
+              ),
+            ],
+          );
+        });
+  }
+
+  void _showLoserSelection(BuildContext context, String groupId) {
     final contactProvider = Provider.of<ContactProvider>(context, listen: false);
     List<String> selectedLoserIds = [];
     final searchController = TextEditingController();
