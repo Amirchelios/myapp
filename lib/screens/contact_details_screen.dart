@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
 
 import '../providers/contact_provider.dart';
@@ -38,10 +39,88 @@ class ContactDetailsView extends StatefulWidget {
 
 class _ContactDetailsViewState extends State<ContactDetailsView> {
   final TextEditingController _paymentController = TextEditingController();
+  late final Map<String, TextEditingController> _itemControllers;
+  late final Map<String, FocusNode> _itemFocusNodes;
+  final List<String> _itemNames = const ["PC", "PS4", "بازی", "کیک", "نوشابه", "هایپ"];
+
+  @override
+  void initState() {
+    super.initState();
+    _itemControllers = {
+      for (var itemName in _itemNames)
+        itemName: TextEditingController()
+    };
+    _itemFocusNodes = {
+      for (var itemName in _itemNames)
+        itemName: FocusNode()
+    };
+
+    for (var itemName in _itemNames) {
+      final isTimeBased = itemName == "PC" || itemName == "PS4";
+      if (isTimeBased) {
+        _itemFocusNodes[itemName]!.addListener(() {
+          if (!_itemFocusNodes[itemName]!.hasFocus) {
+            _updateTimeBasedItem(itemName);
+          }
+        });
+      }
+    }
+
+    _updateControllerValuesFromContact(widget.contact);
+  }
+
+  @override
+  void didUpdateWidget(covariant ContactDetailsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.contact != oldWidget.contact) {
+      // Only update controllers if the corresponding field doesn't have focus
+      bool hasFocus = _itemFocusNodes.values.any((node) => node.hasFocus);
+      if (!hasFocus) {
+        _updateControllerValuesFromContact(widget.contact);
+      }
+    }
+  }
+
+  void _updateControllerValuesFromContact(Contact contact) {
+    contact.items.forEach((itemName, count) {
+      final controller = _itemControllers[itemName];
+      if (controller != null) {
+        final isTimeBased = itemName == "PC" || itemName == "PS4";
+        String newText;
+        if (isTimeBased) {
+          final hours = count / 60.0;
+          newText = hours == hours.truncate() ? hours.truncate().toString() : hours.toStringAsFixed(2);
+        } else {
+          newText = count.toString();
+        }
+        
+        if (controller.text != newText) {
+          controller.text = newText;
+        }
+      }
+    });
+  }
+  
+  void _updateTimeBasedItem(String itemName) {
+    final controller = _itemControllers[itemName]!;
+    final provider = Provider.of<ContactProvider>(context, listen: false);
+    final hours = double.tryParse(controller.text) ?? 0.0;
+    final minutes = (hours * 60).round();
+    
+    if (widget.contact.items[itemName] != minutes) {
+      provider.setItemValue(widget.contact.id, itemName, minutes);
+    }
+  }
 
   @override
   void dispose() {
     _paymentController.dispose();
+    for (final controller in _itemControllers.values) {
+      controller.dispose();
+    }
+    for (final node in _itemFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -59,7 +138,12 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
   double _calculateTotalDebt(Contact contact, Map<String, double> prices) {
     double total = 0;
     contact.items.forEach((itemName, count) {
-      total += (prices[itemName] ?? 0) * count;
+      final price = prices[itemName] ?? 0;
+      if (itemName == 'PC' || itemName == 'PS4') {
+        total += (price / 60.0) * count;
+      } else {
+        total += price * count;
+      }
     });
     return total;
   }
@@ -85,16 +169,24 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
                 'جزئیات حساب: ${widget.contact.name}',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _showEditNameDialog(context, widget.contact),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.orange),
+                    onPressed: () => _showResetConfirmationDialog(context, widget.contact),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _showEditNameDialog(context, widget.contact),
+                  ),
+                ],
               ),
             ],
           ),
           const Divider(height: 20),
           ..._buildItemRows(context, widget.contact, contactProvider),
           const Divider(height: 20),
-          _buildSummaryRow('مجموع بدهی:', numberFormat.format(totalDebt), Colors.red),
+          _buildSummaryRow('مجموع بدهی:', numberFormat.format(totalDebt.round()), Colors.red),
           _buildSummaryRow('بستانکاری:', numberFormat.format(widget.contact.credit), Colors.green),
           const Divider(height: 20),
           _buildPaymentSection(context, widget.contact, contactProvider, priceProvider),
@@ -104,12 +196,10 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
   }
 
   List<Widget> _buildItemRows(BuildContext context, Contact contact, ContactProvider provider) {
-    final items = ["PC", "PS4", "بازی", "کیک", "نوشابه", "هایپ"];
-    return items.map((itemName) {
-      final count = contact.items[itemName] ?? 0;
+    return _itemNames.map((itemName) {
       final isTimeBased = itemName == "PC" || itemName == "PS4";
-      final controller = TextEditingController(text: count.toString());
-      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+      final controller = _itemControllers[itemName]!;
+      final focusNode = _itemFocusNodes[itemName]!;
 
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -118,22 +208,26 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
             SizedBox(width: 80, child: Text('$itemName:', style: const TextStyle(fontWeight: FontWeight.bold))),
             if (isTimeBased)
               SizedBox(
-                width: 80,
+                width: 120,
                 child: TextField(
                   controller: controller,
-                  keyboardType: TextInputType.number,
+                  focusNode: focusNode,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   textAlign: TextAlign.center,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    suffixText: 'ساعت',
+                  ),
                   onSubmitted: (value) {
-                    final intValue = int.tryParse(value) ?? 0;
-                    provider.setItemValue(contact.id, itemName, intValue);
+                    _updateTimeBasedItem(itemName);
+                    FocusScope.of(context).unfocus();
                   },
                 ),
               )
             else ...[
               SizedBox(
                 width: 40,
-                child: Text(count.toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
+                child: Text((contact.items[itemName] ?? 0).toString(), textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
               ),
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
@@ -204,6 +298,33 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
           },
         ),
       ],
+    );
+  }
+
+  void _showResetConfirmationDialog(BuildContext context, Contact contact) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تایید ریست'),
+          content: Text('آیا از ریست کردن حساب کاربری "${contact.name}" مطمئن هستید؟ تمام آیتم ها و بستانکاری صفر خواهند شد.'),
+          actions: [
+            TextButton(
+              child: const Text('لغو'),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('ریست'),
+              onPressed: () {
+                Provider.of<ContactProvider>(context, listen: false).resetContactItems(contact.id);
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

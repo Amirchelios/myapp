@@ -134,27 +134,57 @@ class ContactProvider with ChangeNotifier {
     for (var itemName in itemsPriority) {
       if (totalAvailable <= 0) break;
 
-      final pricePerUnit = prices[itemName] ?? 0;
-      if (pricePerUnit <= 0) continue;
+      final isTimeBased = itemName == 'PC' || itemName == 'PS4';
+      final price = prices[itemName] ?? 0;
+      if (price <= 0) continue;
 
       final currentUnits = newItems[itemName] ?? 0;
       if (currentUnits <= 0) continue;
 
-      int unitsToPay = (totalAvailable / pricePerUnit).floor();
-      unitsToPay = unitsToPay > currentUnits ? currentUnits : unitsToPay;
+      if (isTimeBased) {
+        final pricePerMinute = price / 60.0;
+        if (pricePerMinute <= 0) continue;
 
-      if (unitsToPay > 0) {
-        newItems[itemName] = currentUnits - unitsToPay;
-        totalAvailable -= unitsToPay * pricePerUnit;
+        int minutesToPay = (totalAvailable / pricePerMinute).floor();
+        minutesToPay = minutesToPay > currentUnits ? currentUnits : minutesToPay;
+
+        if (minutesToPay > 0) {
+          newItems[itemName] = currentUnits - minutesToPay;
+          totalAvailable -= minutesToPay * pricePerMinute;
+        }
+      } else {
+        int unitsToPay = (totalAvailable / price).floor();
+        unitsToPay = unitsToPay > currentUnits ? currentUnits : unitsToPay;
+
+        if (unitsToPay > 0) {
+          newItems[itemName] = currentUnits - unitsToPay;
+          totalAvailable -= unitsToPay * price;
+        }
       }
     }
 
     final updatedContact = contact.copyWith(
       items: newItems,
-      credit: totalAvailable > 0 ? totalAvailable : 0,
+      credit: totalAvailable > 0 ? totalAvailable.roundToDouble() : 0,
     );
 
     updateContact(updatedContact);
+  }
+
+  void resetContactItems(String contactId) {
+    final contact = findContactById(contactId);
+    if (contact != null) {
+      final newItems = {
+        "PC": 0,
+        "PS4": 0,
+        "بازی": 0,
+        "کیک": 0,
+        "نوشابه": 0,
+        "هایپ": 0,
+      };
+      final updatedContact = contact.copyWith(items: newItems, credit: 0);
+      updateContact(updatedContact);
+    }
   }
 
   String getContactsAsJson() {

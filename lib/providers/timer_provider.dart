@@ -72,6 +72,7 @@ class TimerProvider with ChangeNotifier {
     final device = _devices.firstWhere((d) => d.id == id);
     device.isActive = !device.isActive;
     if (device.isActive) {
+      device.seconds = 0; // Reset timer on start
       device.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         device.seconds++;
         notifyListeners();
@@ -97,6 +98,7 @@ class TimerProvider with ChangeNotifier {
     final group = _groups.firstWhere((g) => g.id == id);
     group.isActive = !group.isActive;
     if (group.isActive) {
+      group.seconds = 0; // Reset timer on start
       group.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         group.seconds++;
         notifyListeners();

@@ -12,10 +12,9 @@ class GameTableScreen extends StatelessWidget {
   const GameTableScreen({super.key});
 
   String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '$minutes دقیقه و $seconds ثانیه';
   }
 
   @override
@@ -121,10 +120,12 @@ class GameTableScreen extends StatelessWidget {
     if (device.isActive) {
       // If timer is active, show confirmation dialog
       final Duration elapsedTime = Duration(seconds: device.seconds);
-      final double pricePerMinute = device.type == 'PC'
-          ? priceProvider.price.pc / 60.0
-          : priceProvider.price.ps4 / 60.0;
-      final double totalCost = (device.seconds * pricePerMinute);
+      final int minutesRoundedUp = (elapsedTime.inSeconds / 60).ceil();
+      final double pricePerMinute = (device.type == 'PC'
+              ? priceProvider.price.pc
+              : priceProvider.price.ps4)
+          .toDouble();
+      final double totalCost = minutesRoundedUp * pricePerMinute;
 
       showDialog(
         context: context,
@@ -133,27 +134,18 @@ class GameTableScreen extends StatelessWidget {
           child: AlertDialog(
             title: const Text('پایان نشست؟'),
             content: Text(
-                'زمان سپری شده: ${_formatDuration(elapsedTime)}\nمبلغ قابل پرداخت: ${totalCost.toStringAsFixed(0)} تومان'),
+                'زمان سپری شده: ${_formatDuration(elapsedTime)}\nزمان محاسبه شده: $minutesRoundedUp دقیقه\nمبلغ قابل پرداخت: ${totalCost.toStringAsFixed(0)} تومان'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(), // لغو
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text('ادامه تایمر'),
               ),
               TextButton(
                 onPressed: () {
-                  timerProvider.stopDeviceTimer(device.id);
                   Navigator.of(context).pop();
-                  // TODO: Implement Payment Logic
+                  _showPaymentOptions(context, device, totalCost, minutesRoundedUp);
                 },
-                child: const Text('پرداخت'),
-              ),
-              TextButton(
-                onPressed: () {
-                  timerProvider.stopDeviceTimer(device.id);
-                   Navigator.of(context).pop();
-                   _showContactSelectionForDebt(context, device.type == 'PC' ? 'PC' : 'PS4', totalCost);
-                },
-                child: const Text('افزودن به حساب دفتری'),
+                child: const Text('بله'),
               ),
             ],
           ),
@@ -166,7 +158,7 @@ class GameTableScreen extends StatelessWidget {
   }
 
   void _showContactSelectionForDebt(
-      BuildContext context, String itemType, double amount) {
+      BuildContext context, DeviceTimer device, String itemType, int durationInMinutes) {
     final contactProvider = Provider.of<ContactProvider>(context, listen: false);
     final searchController = TextEditingController();
 
@@ -205,10 +197,12 @@ class GameTableScreen extends StatelessWidget {
                             return ListTile(
                               title: Text(contact.name, textAlign: TextAlign.right),
                               onTap: () {
-                                final updatedItems = Map<String, int>.from(contact.items);
-                                // Store cost as integer, assuming price is in integer units (e.g., Tomans)
-                                updatedItems[itemType] = (updatedItems[itemType] ?? 0) + amount.round();
-                                contactProvider.updateContact(contact.copyWith(items: updatedItems));
+                                setState(() {
+                                  final updatedItems = Map<String, int>.from(contact.items);
+                                  // Store duration in minutes
+                                  updatedItems[itemType] = (updatedItems[itemType] ?? 0) + durationInMinutes;
+                                  contactProvider.updateContact(contact.copyWith(items: updatedItems));
+                                });
                                 Navigator.of(context).pop();
                               },
                             );
@@ -229,6 +223,43 @@ class GameTableScreen extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _showPaymentOptions(
+      BuildContext context, DeviceTimer device, double totalCost, int minutesRoundedUp) {
+    final timerProvider = Provider.of<TimerProvider>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('گزینه های پرداخت'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                timerProvider.stopDeviceTimer(device.id);
+                Navigator.of(context).pop();
+                // TODO: Implement Payment Logic
+              },
+              child: const Text('پرداخت'),
+            ),
+            TextButton(
+              onPressed: () {
+                timerProvider.stopDeviceTimer(device.id);
+                Navigator.of(context).pop();
+                _showContactSelectionForDebt(context, device,
+                    device.type == 'PC' ? 'PC' : 'PS4', minutesRoundedUp);
+              },
+              child: const Text('افزودن به حساب دفتری'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('لغو'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
