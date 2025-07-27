@@ -61,15 +61,32 @@ class Price {
   double cake;
   double soda;
   double hype;
+  double game;
 
   Price({
-    this.pc = 1000,
-    this.ps4 = 1500,
-    this.cake = 500,
-    this.soda = 300,
-    this.hype = 700,
+    this.pc = 850,
+    this.ps4 = 850,
+    this.cake = 20000,
+    this.soda = 20000,
+    this.hype = 30000,
+    this.game = 10000,
   });
 
-  factory Price.fromJson(Map<String, dynamic> json) => _$PriceFromJson(json);
-  Map<String, dynamic> toJson() => _$PriceToJson(this);
+  factory Price.fromJson(Map<String, dynamic> json) {
+    final price = _$PriceFromJson(json);
+    // Manually handle the 'game' field as it's not in the generated file.
+    if (json.containsKey('game')) {
+      price.game = (json['game'] as num).toDouble();
+    } else {
+      price.game = 10000; // Default value
+    }
+    return price;
+  }
+
+  Map<String, dynamic> toJson() {
+    final json = _$PriceToJson(this);
+    // Manually add the 'game' field to the json output.
+    json['game'] = game;
+    return json;
+  }
 }
