@@ -73,13 +73,14 @@ class TimerProvider with ChangeNotifier {
     final device = _devices.firstWhere((d) => d.id == id);
     device.isActive = !device.isActive;
     if (device.isActive) {
-      device.seconds = 0; // Reset timer on start
+      device.seconds = 0; // Reset timer on start of a new session
       device.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         device.seconds++;
         notifyListeners();
       });
     } else {
       device.timer?.cancel();
+      // Do not reset seconds here, preserve the accumulated time
     }
     saveTimers();
     notifyListeners();
@@ -89,8 +90,7 @@ class TimerProvider with ChangeNotifier {
     final device = _devices.firstWhere((d) => d.id == id);
     device.isActive = false;
     device.timer?.cancel();
-    // Logic to calculate cost and show payment dialog will be added here
-    device.seconds = 0;
+    // Do not reset seconds here, preserve the accumulated time for calculation
     saveTimers();
     notifyListeners();
   }
@@ -99,14 +99,14 @@ class TimerProvider with ChangeNotifier {
     final group = _groups.firstWhere((g) => g.id == id);
     group.isActive = !group.isActive;
     if (group.isActive) {
-      group.seconds = 0; // Reset timer on start
+      group.seconds = 0; // Reset timer on start of a new session
       group.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         group.seconds++;
         notifyListeners();
       });
     } else {
       group.timer?.cancel();
-      // Logic to show loser selection dialog will be added here
+      // Do not reset seconds here, preserve the accumulated time
     }
     saveTimers();
     notifyListeners();

@@ -64,12 +64,12 @@ class Price {
   double game;
 
   Price({
-    this.pc = 850,
-    this.ps4 = 850,
+    this.pc = 25000,
+    this.ps4 = 35000,
     this.cake = 20000,
     this.soda = 20000,
     this.hype = 30000,
-    this.game = 10000,
+    this.game = 15000,
   });
 
   factory Price.fromJson(Map<String, dynamic> json) {

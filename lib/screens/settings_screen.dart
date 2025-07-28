@@ -29,14 +29,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 TextFormField(
                   initialValue: _price.pc.toString(),
                   textAlign: TextAlign.right, // Align text to the right
-                  decoration: const InputDecoration(labelText: 'قیمت هر دقیقه کامپیوتر'),
+                  decoration: const InputDecoration(labelText: 'قیمت هر ساعت کامپیوتر'),
                   keyboardType: TextInputType.number,
                   onSaved: (value) => _price.pc = double.tryParse(value ?? '0') ?? 0,
                 ),
                 TextFormField(
                   initialValue: _price.ps4.toString(),
                   textAlign: TextAlign.right, // Align text to the right
-                  decoration: const InputDecoration(labelText: 'قیمت هر دقیقه پلی‌استیشن ۴'),
+                  decoration: const InputDecoration(labelText: 'قیمت هر ساعت پلی‌استیشن ۴'),
                   keyboardType: TextInputType.number,
                   onSaved: (value) => _price.ps4 = double.tryParse(value ?? '0') ?? 0,
                 ),

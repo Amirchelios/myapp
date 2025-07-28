@@ -59,9 +59,7 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
       final isTimeBased = itemName == "PC" || itemName == "PS4";
       if (isTimeBased) {
         _itemFocusNodes[itemName]!.addListener(() {
-          if (_itemFocusNodes[itemName]!.hasFocus) {
-            _showTimePlayedDialog(itemName);
-          } else {
+          if (!_itemFocusNodes[itemName]!.hasFocus) {
             _updateTimeBasedItem(itemName);
           }
         });
@@ -208,7 +206,7 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
         child: Row(
           children: [
             SizedBox(width: 80, child: Text('$itemName:', style: const TextStyle(fontWeight: FontWeight.bold))),
-            if (isTimeBased)
+            if (isTimeBased) ...[ // Use spread operator with a list for multiple widgets
               SizedBox(
                 width: 120,
                 child: TextField(
@@ -225,7 +223,12 @@ class _ContactDetailsViewState extends State<ContactDetailsView> {
                     FocusScope.of(context).unfocus();
                   },
                 ),
-              )
+              ),
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                onPressed: () => _showTimePlayedDialog(itemName),
+              ),
+            ]
             else ...[
               SizedBox(
                 width: 40,
