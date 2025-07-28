@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:myapp/background_service.dart';
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'providers/contact_provider.dart';
 import 'providers/price_provider.dart';
 import 'providers/timer_provider.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
+  // اطمینان از مقداردهی اولیه فلاتر
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // درخواست دسترسی نوتیفیکیشن برای اندروید ۱۳ و بالاتر
+  // این کدها فقط برای پلتفرم‌های موبایل است و در وب اجرا نمی‌شود
+  if (!kIsWeb) {
+    await Permission.notification.isDenied.then((value) {
+      if (value) {
+        Permission.notification.request();
+      }
+    });
+
+    // راه‌اندازی سرویس پس‌زمینه
+    await initializeService();
+  }
   runApp(const MyApp());
 }
 
