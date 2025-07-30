@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import '../providers/timer_provider.dart';
 import '../providers/price_provider.dart';
 import '../widgets/device_card.dart';
@@ -17,17 +18,57 @@ class GameTableScreen extends StatelessWidget {
     return '$minutes دقیقه و $seconds ثانیه';
   }
 
+  Future<bool> _onWillPop(BuildContext context) async {
+    final timerProvider = Provider.of<TimerProvider>(context, listen: false);
+    final anyTimerActive = timerProvider.devices.any((d) => d.isActive) ||
+        timerProvider.groups.any((g) => g.isActive);
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: const Text('خروج از برنامه'),
+              content: Text(anyTimerActive
+                  ? 'تایمرهای فعالی وجود دارند. آیا برای خروج از برنامه مطمئن هستید؟'
+                  : 'آیا برای خروج از برنامه مطمئن هستید؟'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('خیر'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('بله'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 600;
-        if (isWide) {
-          return _buildWideLayout();
-        } else {
-          return _buildNarrowLayout();
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (didPop) return;
+        final bool shouldPop = await _onWillPop(context);
+        if (shouldPop) {
+          SystemNavigator.pop();
         }
       },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 600;
+          if (isWide) {
+            return _buildWideLayout();
+          } else {
+            return _buildNarrowLayout();
+          }
+        },
+      ),
     );
   }
 
